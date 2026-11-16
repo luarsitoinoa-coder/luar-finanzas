@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07120e">
+  <meta name="description" content="Administración financiera personal">
+  <title>Luar Finanzas</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">TU ADMINISTRACIÓN PERSONAL</p>
+      <h1>Luar <span>Finanzas</span></h1>
+    </div>
+    <button class="icon-btn" id="settingsBtn" aria-label="Configuración">⚙</button>
+  </header>
+
+  <main class="container">
+    <section class="hero card">
+      <div class="hero-head">
+        <div>
+          <p class="muted">Balance total estimado</p>
+          <h2 id="totalBalance">RD$0.00</h2>
+        </div>
+        <select id="currencySelect" aria-label="Moneda">
+          <option value="DOP">RD$ Pesos</option>
+          <option value="USD">US$ Dólares</option>
+        </select>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span class="dot income-dot"></span>
+          <span>Ingresos</span>
+          <strong id="totalIncome">RD$0.00</strong>
+        </div>
+        <div class="summary-item">
+          <span class="dot expense-dot"></span>
+          <span>Gastos</span>
+          <strong id="totalExpense">RD$0.00</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="quick-actions">
+      <button class="action-btn" data-open="transactionModal" data-type="expense"><span>−</span> Añadir gasto</button>
+      <button class="action-btn" data-open="transactionModal" data-type="income"><span>＋</span> Añadir ingreso</button>
+      <button class="action-btn secondary" data-open="transferModal"><span>⇄</span> Transferir</button>
+    </section>
+
+    
+<nav class="tabs" aria-label="Secciones">
+  <button class="tab active" data-tab="overview">Inicio</button>
+  <button class="tab" data-tab="transactions">Movimientos</button>
+  <button class="tab" data-tab="budgets">Presupuesto</button>
+  <button class="tab" data-tab="accounts">Cuentas</button>
+  <button class="tab" data-tab="debts">Deudas</button>
+  <button class="tab" data-tab="recurring">Recurrentes</button>
+  <button class="tab" data-tab="calendar">Calendario</button>
+  <button class="tab" data-tab="reports">Reportes</button>
+</nav>
+
+
+    <section class="page active" id="page-overview">
+      <div class="section-heading">
+        <div><p class="eyebrow">RESUMEN</p><h2>Este mes</h2></div>
+        <span class="muted" id="monthLabel"></span>
+      </div>
+      <div class="stats-grid">
+        <article class="card stat-card"><p class="muted">Ingresos del mes</p><strong class="positive" id="monthIncome">RD$0.00</strong></article>
+        <article class="card stat-card"><p class="muted">Gastos del mes</p><strong class="negative" id="monthExpense">RD$0.00</strong></article>
+      </div>
+      <article class="card">
+        <div class="section-heading compact"><h3>Gastos por categoría</h3><span class="muted">Mes actual</span></div>
+        <div id="categoryChart" class="bar-list"><p class="empty">Todavía no hay gastos registrados.</p></div>
+      </article>
+      <article class="card">
+        <div class="section-heading compact"><h3>Movimientos recientes</h3><button class="text-btn" data-tab="transactions">Ver todos</button></div>
+        <div id="recentList" class="transaction-list"><p class="empty">Todavía no hay movimientos.</p></div>
+      </article>
+    </section>
+
+    <section class="page" id="page-transactions">
+      <div class="section-heading"><div><p class="eyebrow">HISTORIAL</p><h2>Movimientos</h2></div></div>
+      <div class="filters">
+        <input id="searchTransactions" type="search" placeholder="Buscar movimiento...">
+        <select id="typeFilter">
+          <option value="all">Todos</option><option value="income">Ingresos</option><option value="expense">Gastos</option><option value="transfer">Transferencias</option>
+        </select>
+      </div>
+      <div class="card"><div id="transactionList" class="transaction-list"><p class="empty">No hay movimientos todavía.</p></div></div>
+    </section>
+
+    <section class="page" id="page-budgets">
+      <div class="section-heading"><div><p class="eyebrow">CONTROL DE GASTOS</p><h2>Presupuestos</h2></div><button class="primary-btn" id="addBudgetBtn">＋ Crear</button></div>
+      <p class="muted intro">Define cuánto quieres gastar por categoría cada mes.</p>
+      <div id="budgetList" class="stack"><p class="empty card">Todavía no has creado presupuestos.</p></div>
+    </section>
+
+    <section class="page" id="page-accounts">
+      <div class="section-heading"><div><p class="eyebrow">TU DINERO</p><h2>Cuentas y tarjetas</h2></div><button class="primary-btn" id="addAccountBtn">＋ Añadir</button></div>
+      <p class="muted intro">Registra efectivo, cuentas bancarias o tarjetas. No introduzcas números completos ni códigos de seguridad.</p>
+      <div id="accountList" class="stack"></div>
+    </section>
+
+    <section class="page" id="page-debts">
+      <div class="section-heading"><div><p class="eyebrow">CONTROL DE OBLIGACIONES</p><h2>Mis deudas</h2></div><button class="primary-btn" id="addDebtBtn">＋ Añadir deuda</button></div>
+      <div class="stats-grid"><article class="card stat-card"><p class="muted">Deuda pendiente (RD$)</p><strong id="debtTotalDOP" class="negative">RD$0.00</strong></article><article class="card stat-card"><p class="muted">Deudas registradas</p><strong id="debtCount">0</strong></article></div>
+      <p class="muted intro">Registra préstamos, tarjetas de crédito u otras obligaciones. Los pagos se anotan manualmente.</p>
+      <div id="debtList" class="stack"><p class="empty card">Todavía no has registrado deudas.</p></div>
+    </section>
+
+    <section class="page" id="page-recurring">
+      <div class="section-heading"><div><p class="eyebrow">PAGOS HABITUALES</p><h2>Pagos recurrentes</h2></div><button class="primary-btn" id="addRecurringBtn">＋ Añadir</button></div>
+      <p class="muted intro">Guarda alquiler, internet, suscripciones y otros pagos. Pulsa “Registrar pago” únicamente cuando lo hayas pagado.</p>
+      <div id="recurringList" class="stack"><p class="empty card">Todavía no has añadido pagos recurrentes.</p></div>
+    </section>
+
+    
+      <section class="page" id="page-calendar">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">ORGANIZA TUS PAGOS</p>
+      <h2>Calendario financiero</h2>
+    </div>
+  </div>
+
+  <article class="card">
+    <div class="calendar-header">
+      <button class="secondary-btn" id="prevCalendarMonth">←</button>
+      <h3 id="calendarMonth"></h3>
+      <button class="secondary-btn" id="nextCalendarMonth">→</button>
+    </div>
+    <div id="calendarGrid" class="calendar-grid"></div>
+  </article>
+
+  <article class="card">
+    <h3>Pagos y vencimientos</h3>
+    <div id="calendarEvents">
+      <p class="empty">No hay pagos programados.</p>
+    </div>
+  </article>
+</section>
+
+<section class="page" id="page-reports">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">ANÁLISIS</p>
+          <h2>Reportes</h2>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-heading compact">
+          <h3>Últimos seis meses</h3>
+          <span class="muted">Ingresos y gastos</span>
+        </div>
+        <div id="monthlyChart" class="monthly-chart">
+          <p class="empty">Aún no hay datos suficientes.</p>
+        </div>
+      </div>
+      <div class="card report-card">
+        <h3>Resumen de todos tus movimientos</h3>
+        <p class="muted">Descarga una copia en formato CSV que puedes abrir con Excel.</p>
+        <button class="primary-btn full" id="exportBtn">⇩ Exportar movimientos CSV</button>
+        <button class="secondary-btn full" id="backupBtn">Crear copia de seguridad JSON</button>
+        <label class="secondary-btn full file-label">Restaurar copia de seguridad<input id="restoreInput" type="file" accept="application/json"></label>
+      </div>
+      <div class="card">
+        <h3>Totales generales</h3>
+        <div class="report-row"><span>Ingresos</span><strong id="reportIncome">RD$0.00</strong></div>
+        <div class="report-row"><span>Gastos</span><strong id="reportExpense">RD$0.00</strong></div>
+        <div class="report-row"><span>Balance neto</span><strong id="reportNet">RD$0.00</strong></div>
+      </div>
+      <p class="small muted">Los informes se calculan con los movimientos registrados en este dispositivo.</p>
+    </section>
+  </main>
+
+  <footer class="footer">Luar Finanzas · Tus datos, bajo tu control</footer>
+
+  <dialog id="transactionModal" class="modal">
+    <form id="transactionForm" method="dialog">
+      <div class="modal-head"><h2 id="transactionTitle">Añadir movimiento</h2><button type="button" class="close-btn" data-close>×</button></div>
+      <input type="hidden" id="transactionType" value="expense">
+      <label>Tipo<select id="formType"><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>
+      <label>Descripción<input id="description" required maxlength="80" placeholder="Ej. Compra del supermercado"></label>
+      <div class="form-grid">
+        <label>Monto<input id="amount" required type="number" min="0.01" step="0.01" placeholder="0.00"></label>
+        <label>Moneda<select id="formCurrency"><option value="DOP">RD$</option><option value="USD">US$</option></select></label>
+      </div>
+      <label>Categoría<select id="category"></select></label>
+      <label>Cuenta<select id="transactionAccount"></select></label>
+      <label>Fecha<input id="transactionDate" type="date" required></label>
+      <label>Nota (opcional)<textarea id="note" rows="2" maxlength="250" placeholder="Detalles adicionales"></textarea></label>
+      <button class="primary-btn full" type="submit">Guardar movimiento</button>
+    </form>
+  </dialog>
+
+  <dialog id="transferModal" class="modal">
+    <form id="transferForm" method="dialog">
+      <div class="modal-head"><h2>Registrar transferencia</h2><button type="button" class="close-btn" data-close>×</button></div>
+      <p class="muted small">Una transferencia mueve dinero entre tus cuentas y no se cuenta como ingreso ni gasto.</p>
+      <label>Descripción<input id="transferDescription" required placeholder="Ej. Pasar dinero al banco"></label>
+      <label>Monto<input id="transferAmount" type="number" min="0.01" step="0.01" required></label>
+      <label>Desde<select id="fromAccount"></select></label>
+      <label>Hacia<select id="toAccount"></select></label>
+      <label>Fecha<input id="transferDate" type="date" required></label>
+      <button class="primary-btn full" type="submit">Guardar transferencia</button>
+    </form>
+  </dialog>
+
+  <dialog id="accountModal" class="modal">
+    <form id="accountForm" method="dialog">
+      <div class="modal-head"><h2>Nueva cuenta</h2><button type="button" class="close-btn" data-close>×</button></div>
+      <label>Nombre<input id="accountName" required maxlength="50" placeholder="Ej. Efectivo, Banco Popular"></label>
+      <label>Tipo<select id="accountType"><option>Efectivo</option><option>Cuenta bancaria</option><option>Tarjeta de débito</option><option>Tarjeta de crédito (registro manual)</option><option>Ahorros</option><option>Otro</option></select></label>
+      <label>Saldo inicial<input id="openingBalance" type="number" step="0.01" value="0" required></label>
+      <label>Moneda<select id="accountCurrency"><option value="DOP">RD$ Pesos dominicanos</option><option value="USD">US$ Dólares</option></select></label>
+      <button class="primary-btn full" type="submit">Guardar cuenta</button>
+    </form>
+  </dialog>
+
+  <dialog id="budgetModal" class="modal">
+    <form id="budgetForm" method="dialog">
+      <div class="modal-head"><h2>Nuevo presupuesto</h2><button type="button" class="close-btn" data-close>×</button></div>
+      <label>Categoría<select id="budgetCategory"></select></label>
+      <label>Límite mensual<input id="budgetLimit" type="number" min="0.01" step="0.01" required placeholder="0.00"></label>
+      <label>Moneda<select id="budgetCurrency"><option value="DOP">RD$</option><option value="USD">US$</option></select></label>
+      <button class="primary-btn full" type="submit">Guardar presupuesto</button>
+    </form>
+  </dialog>
+
+  <dialog id="settingsModal" class="modal">
+    <form id="settingsForm" method="dialog">
+      <div class="modal-head"><h2>Configuración</h2><button type="button" class="close-btn" data-close>×</button></div>
+      <label>Moneda principal<select id="mainCurrency"><option value="DOP">Pesos dominicanos (RD$)</option><option value="USD">Dólares (US$)</option></select></label>
+      <p class="small muted">Cada cuenta conserva su propia moneda. Esta opción cambia la moneda que se muestra por defecto al registrar movimientos.</p>
+      <button class="primary-btn full" type="submit">Guardar configuración</button>
+      <button class="danger-btn full" type="button" id="clearDataBtn">Eliminar todos mis datos</button>
+    </form>
+  </dialog>
+
+
+  <dialog id="debtModal" class="modal">
+    <form id="debtForm" method="dialog">
+      <div class="modal-head"><h2>Nueva deuda</h2><button type="button" class="close-btn" data-close>×</button></div>
+      <label>Nombre o entidad<input id="debtName" required maxlength="70" placeholder="Ej. Préstamo personal"></label>
+      <div class="form-grid"><label>Monto original<input id="debtOriginal" type="number" min="0.01" step="0.01" required></label><label>Saldo pendiente<input id="debtRemaining" type="number" min="0" step="0.01" required></label></div>
+      <div class="form-grid"><label>Pago habitual (opcional)<input id="debtPayment" type="number" min="0" step="0.01" value="0"></label><label>Moneda<select id="debtCurrency"><option value="DOP">RD$</option><option value="USD">US$</option></select></label></div>
+      <label>Próxima fecha de pago (opcional)<input id="debtDue" type="date"></label>
+      <button class="primary-btn full" type="submit">Guardar deuda</button>
+    </form>
+  </dialog>
+
+  <dialog id="debtPayModal" class="modal">
+    <form id="debtPayForm" method="dialog">
+      <div class="modal-head"><h2>Registrar pago de deuda</h2><button type="button" class="close-btn" data-close>×</button></div>
+      <label>Deuda<select id="payDebtSelect"></select></label>
+      <label>Monto pagado<input id="debtPayAmount" type="number" min="0.01" step="0.01" required></label>
+      <label>Cuenta desde la que pagaste<select id="debtPayAccount"></select></label>
+      <label>Fecha<input id="debtPayDate" type="date" required></label>
+      <button class="primary-btn full" type="submit">Guardar pago</button>
+    </form>
+  </dialog>
+
+  <dialog id="recurringModal" class="modal">
+    <form id="recurringForm" method="dialog">
+      <div class="modal-head"><h2>Nuevo pago recurrente</h2><button type="button" class="close-btn" data-close>×</button></div>
+      <label>Descripción<input id="recurringName" required maxlength="70" placeholder="Ej. Internet de casa"></label>
+      <label>Monto<input id="recurringAmount" type="number" min="0.01" step="0.01" required></label>
+      <div class="form-grid"><label>Categoría<select id="recurringCategory"></select></label><label>Moneda<select id="recurringCurrency"><option value="DOP">RD$</option><option value="USD">US$</option></select></label></div>
+      <label>Cuenta<select id="recurringAccount"></select></label>
+      <div class="form-grid"><label>Frecuencia<select id="recurringFrequency"><option value="monthly">Mensual</option><option value="weekly">Semanal</option><option value="biweekly">Cada 2 semanas</option></select></label><label>Próximo pago<input id="recurringNext" type="date" required></label></div>
+      <button class="primary-btn full" type="submit">Guardar pago recurrente</button>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
