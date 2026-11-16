@@ -1,4 +1,16 @@
+import { auth, googleProvider, db } from "./firebase.js";
 
+import {
+  signInWithPopup,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
+
+import {
+  doc,
+  getDoc,
+  setDoc
+} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 const DB_KEY = "luar_finanzas_v1";
 const CATEGORIES = {
   expense: ["Alimentación","Transporte","Vivienda","Servicios","Salud","Educación","Entretenimiento","Compras","Deudas","Otros"],
@@ -19,7 +31,9 @@ const defaultData = () => ({
   debts:[],
   recurring:[]
 });
-let data = loadData();
+const legacyData = loadData();
+let data = defaultData();
+let currentUser = null;
 let calendarDate = new Date();
 let calendarSelectedDate = localToday();
 
@@ -36,7 +50,22 @@ function loadData(){
     };
   } catch(e){ return defaultData(); }
 }
-function saveData(){ localStorage.setItem(DB_KEY,JSON.stringify(data)); renderAll(); }
+function saveData(){
+  if(!currentUser) return;
+
+  const userKey = DB_KEY + "_" + currentUser.uid;
+
+  localStorage.setItem(userKey,JSON.stringify(data));
+  renderAll();
+
+  setDoc(doc(db,"users",currentUser.uid),{
+    data: data,
+    updatedAt: new Date().toISOString()
+  }).catch(error=>{
+    console.error("Error al sincronizar:",error);
+    showToast("No se pudieron sincronizar los datos");
+  });
+}
 function money(value,currency="DOP"){
   return new Intl.NumberFormat("es-DO",{style:"currency",currency,minimumFractionDigits:2}).format(Number(value)||0);
 }
@@ -755,3 +784,81 @@ $("debtPayForm").addEventListener("submit",e=>{
 });
 
 init();
+// INICIO DE SESIÓN CON GOOGLE
+
+$("googleLoginBtn").addEventListener("click", async ()=>{
+  $("loginMessage").textContent = "Conectando con Google...";
+
+  try {
+    await signInWithPopup(auth, googleProvider);
+  } catch(error) {
+    console.error(error);
+    $("loginMessage").textContent = "No se pudo iniciar sesión. Inténtalo nuevamente.";
+  }
+});
+
+onAuthStateChanged(auth, async (user)=>{
+  currentUser = user;
+
+  if(!user){
+    $("appContent").style.display = "none";
+    $("loginScreen").style.display = "flex";
+    return;
+  }
+  // MOSTRAR PERFIL DE GOOGLE
+
+$("profileName").textContent = user.displayName || "Mi cuenta";
+$("profileEmail").textContent = user.email || "";
+
+const profilePhoto = $("profilePhoto");
+
+if(user.photoURL){
+  profilePhoto.src = user.photoURL;
+  profilePhoto.style.display = "block";
+} else {
+  profilePhoto.style.display = "none";
+}
+  $("loginMessage").textContent = "Cargando tus datos...";
+
+  try {
+    const userRef = doc(db,"users",user.uid);
+    const userDoc = await getDoc(userRef);
+
+    if(userDoc.exists() && userDoc.data().data){
+      data = userDoc.data().data;
+    } else {
+      const hasOldData = localStorage.getItem(DB_KEY) !== null;
+
+      if(hasOldData && confirm(
+        "Encontramos datos guardados anteriormente en este dispositivo. ¿Quieres importarlos a esta cuenta de Google? Asegúrate de que sean tuyos."
+      )){
+        data = legacyData;
+      } else {
+        data = defaultData();
+      }
+
+      await setDoc(userRef,{
+        data: data,
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    const userKey = DB_KEY + "_" + user.uid;
+    localStorage.setItem(userKey,JSON.stringify(data));
+
+    $("loginScreen").style.display = "none";
+    $("appContent").style.display = "block";
+
+    renderAll();
+
+  } catch(error) {
+    console.error("Error cargando datos:",error);
+    $("loginMessage").textContent = "Error al cargar tus datos. Revisa tu conexión.";
+  }
+});
+
+// CERRAR SESIÓN
+
+$("logoutBtn").addEventListener("click", ()=>{
+  signOut(auth);
+});

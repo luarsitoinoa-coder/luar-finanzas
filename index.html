@@ -10,13 +10,30 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar">
+
+<div id="loginScreen" style="display:none; min-height:100vh; align-items:center; justify-content:center; padding:25px;">
+  <div class="card" style="max-width:420px; width:100%; text-align:center; padding:30px;">
+    <h1>Luar <span>Finanzas</span></h1>
+    <p class="muted">Administra tus ingresos, gastos y cuentas desde cualquier dispositivo.</p>
+    <button id="googleLoginBtn" class="primary-btn full">
+      Continuar con Google
+    </button>
+    <p id="loginMessage" class="muted"></p>
+  </div>
+</div>
+
+<div id="appContent" style="display:none;">
+
+<header class="topbar">
+
     <div>
-      <p class="eyebrow">TU ADMINISTRACIÓN PERSONAL</p>
-      <h1>Luar <span>Finanzas</span></h1>
-    </div>
-    <button class="icon-btn" id="settingsBtn" aria-label="Configuración">⚙</button>
-  </header>
+  <p class="eyebrow">TU ADMINISTRACIÓN PERSONAL</p>
+  <h1>Luar <span>Finanzas</span></h1>
+</div>
+
+<button class="icon-btn" id="settingsBtn" aria-label="Configuración">⚙</button>
+
+</header>
 
   <main class="container">
     <section class="hero card">
@@ -233,14 +250,57 @@
   </dialog>
 
   <dialog id="settingsModal" class="modal">
-    <form id="settingsForm" method="dialog">
-      <div class="modal-head"><h2>Configuración</h2><button type="button" class="close-btn" data-close>×</button></div>
-      <label>Moneda principal<select id="mainCurrency"><option value="DOP">Pesos dominicanos (RD$)</option><option value="USD">Dólares (US$)</option></select></label>
-      <p class="small muted">Cada cuenta conserva su propia moneda. Esta opción cambia la moneda que se muestra por defecto al registrar movimientos.</p>
-      <button class="primary-btn full" type="submit">Guardar configuración</button>
-      <button class="danger-btn full" type="button" id="clearDataBtn">Eliminar todos mis datos</button>
-    </form>
-  </dialog>
+  <form id="settingsForm" method="dialog">
+
+    <div class="modal-head">
+      <h2>Configuración</h2>
+      <button type="button" class="close-btn" data-close>×</button>
+    </div>
+
+    <div style="text-align:center; padding:20px 10px;">
+      <img
+        id="profilePhoto"
+        src=""
+        alt="Foto de perfil"
+        style="width:80px;height:80px;border-radius:50%;object-fit:cover;display:none;margin:0 auto 12px;"
+      >
+
+      <h3 id="profileName">Mi cuenta</h3>
+      <p id="profileEmail" class="small muted"></p>
+      <p class="small muted">Cuenta conectada con Google</p>
+    </div>
+
+    <hr>
+
+    <h3>Preferencias</h3>
+
+    <label>
+      Moneda principal
+      <select id="mainCurrency">
+        <option value="DOP">Pesos dominicanos (RD$)</option>
+        <option value="USD">Dólares (US$)</option>
+      </select>
+    </label>
+
+    <p class="small muted">
+      Cada cuenta conserva su propia moneda. Esta opción cambia la moneda
+      que se muestra por defecto al registrar movimientos.
+    </p>
+
+    <button class="primary-btn full" type="submit">
+      Guardar configuración
+    </button>
+
+    <button class="secondary-btn full" type="button" id="logoutBtn">
+      Cerrar sesión
+    </button>
+
+    <button class="danger-btn full" type="button" id="clearDataBtn">
+      Eliminar todos mis datos
+    </button>
+
+  </form>
+</dialog>
 
 
   <dialog id="debtModal" class="modal">
@@ -277,7 +337,10 @@
     </form>
   </dialog>
 
-  <div id="toast" class="toast" role="status"></div>
-  <script src="app.js"></script>
+  </div>
+
+<div id="toast" class="toast" role="status"></div>
+
+<script type="module" src="app.js"></script>
 </body>
 </html>
