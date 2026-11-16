@@ -287,6 +287,50 @@
       que se muestra por defecto al registrar movimientos.
     </p>
 
+    <hr>
+
+    <h3>🏦 Notificaciones bancarias</h3>
+
+    <p class="small muted">
+      Selecciona los bancos y cuentas digitales de los que deseas importar
+      notificaciones de movimientos desde Gmail.
+    </p>
+
+    <div class="bank-options">
+
+      <label>
+        <input type="checkbox" name="bankSources" value="banreservas">
+        Banreservas
+      </label>
+
+      <label>
+        <input type="checkbox" name="bankSources" value="bhd">
+        Banco BHD
+      </label>
+
+      <label>
+        <input type="checkbox" name="bankSources" value="popular">
+        Banco Popular
+      </label>
+
+      <label>
+        <input type="checkbox" name="bankSources" value="qik">
+        Qik
+      </label>
+
+      <label>
+        <input type="checkbox" name="bankSources" value="token">
+        Token
+        <span class="small muted">(Cuenta digital del Banco Popular)</span>
+      </label>
+
+    </div>
+
+    <p class="small muted">
+      Después podrás conectar Gmail para identificar las notificaciones
+      de las entidades seleccionadas.
+    </p>
+
     <button class="primary-btn full" type="submit">
       Guardar configuración
     </button>

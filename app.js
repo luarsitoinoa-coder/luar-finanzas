@@ -627,18 +627,36 @@ $("addBudgetBtn").addEventListener("click",()=>{
   openModal("budgetModal");
 });
 
+
 $("settingsBtn").addEventListener("click",()=>{
-  $("mainCurrency").value=data.settings.currency;
+  $("mainCurrency").value = data.settings.currency;
+
+  const selectedBanks = data.settings.bankSources || [];
+
+  document.querySelectorAll('input[name="bankSources"]').forEach(input=>{
+    input.checked = selectedBanks.includes(input.value);
+  });
+
   openModal("settingsModal");
 });
 
+
+
 $("settingsForm").addEventListener("submit",e=>{
   e.preventDefault();
-  data.settings.currency=$("mainCurrency").value;
+
+  data.settings.currency = $("mainCurrency").value;
+
+  data.settings.bankSources = Array.from(
+    document.querySelectorAll('input[name="bankSources"]:checked')
+  ).map(input => input.value);
+
   saveData();
+
   e.target.closest("dialog").close();
   showToast("Configuración guardada.");
 });
+
 
 $("clearDataBtn").addEventListener("click",()=>{
   if(confirm("Esto eliminará permanentemente los movimientos, cuentas y presupuestos guardados en este navegador. ¿Continuar?")){
