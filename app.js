@@ -880,3 +880,60 @@ if(user.photoURL){
 $("logoutBtn").addEventListener("click", ()=>{
   signOut(auth);
 });
+
+// CONECTAR GMAIL
+const connectGmailBtn = $("connectGmailBtn");
+
+if (connectGmailBtn) {
+  connectGmailBtn.addEventListener("click", async () => {
+    if (!currentUser) {
+      showToast("Primero debes iniciar sesión.");
+      return;
+    }
+
+    const selectedBanks = Array.from(
+      document.querySelectorAll(
+        'input[name="bankSources"]:checked'
+      )
+    ).map(input => input.value);
+
+    if (selectedBanks.length === 0) {
+      showToast("Selecciona al menos un banco.");
+      return;
+    }
+
+    connectGmailBtn.disabled = true;
+    connectGmailBtn.textContent = "Conectando...";
+
+    try {
+      const idToken = await currentUser.getIdToken();
+
+      const response = await fetch(
+        "https://luar-finanzas-api.luarsitoinoa.workers.dev/auth/google/start",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`
+          },
+          body: JSON.stringify({ selectedBanks })
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.authorizationUrl) {
+        throw new Error(result.error || "No se pudo iniciar la conexión.");
+      }
+
+      window.location.href = result.authorizationUrl;
+
+    } catch (error) {
+      console.error("Error conectando Gmail:", error);
+      showToast("No se pudo conectar Gmail. Inténtalo nuevamente.");
+
+      connectGmailBtn.disabled = false;
+      connectGmailBtn.textContent = "Conectar Gmail";
+    }
+  });
+}
