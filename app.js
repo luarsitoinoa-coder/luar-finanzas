@@ -34,6 +34,7 @@ const defaultData = () => ({
 const legacyData = loadData();
 let data = defaultData();
 let currentUser = null;
+let gmailConnected = false;
 let calendarDate = new Date();
 let calendarSelectedDate = localToday();
 
@@ -868,6 +869,7 @@ if(user.photoURL){
     $("appContent").style.display = "block";
 
     renderAll();
+    await refreshGmailStatus();
 
   } catch(error) {
     console.error("Error cargando datos:",error);
@@ -881,59 +883,193 @@ $("logoutBtn").addEventListener("click", ()=>{
   signOut(auth);
 });
 
-// CONECTAR GMAIL
+// GMAIL: conexión, estado y sincronización de movimientos
+const GMAIL_API = "https://luar-finanzas-api.luarsitoinoa.workers.dev";
 const connectGmailBtn = $("connectGmailBtn");
 
-if (connectGmailBtn) {
-  connectGmailBtn.addEventListener("click", async () => {
-    if (!currentUser) {
-      showToast("Primero debes iniciar sesión.");
-      return;
+async function gmailRequest(path, method = "GET", body = null) {
+  if (!currentUser) throw new Error("Debes iniciar sesión.");
+  const idToken = await currentUser.getIdToken();
+  const response = await fetch(`${GMAIL_API}${path}`, {
+    method,
+    headers: {
+      "Authorization": `Bearer ${idToken}`,
+      ...(body ? { "Content-Type": "application/json" } : {})
+    },
+    ...(body ? { body: JSON.stringify(body) } : {})
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(result.error || "No se pudo completar la operación con Gmail.");
+    error.code = result.code;
+    throw error;
+  }
+  return result;
+}
+
+async function refreshGmailStatus() {
+  if (!connectGmailBtn || !currentUser) return;
+  try {
+    const status = await gmailRequest("/gmail/status");
+    gmailConnected = Boolean(status.connected);
+    connectGmailBtn.textContent = gmailConnected ? "Sincronizar Gmail" : "Conectar Gmail";
+    if (gmailConnected && status.email) {
+      connectGmailBtn.title = `Gmail conectado: ${status.email}`;
+    } else {
+      connectGmailBtn.removeAttribute("title");
     }
+  } catch (error) {
+    console.warn("No se pudo consultar el estado de Gmail:", error);
+    connectGmailBtn.textContent = "Conectar Gmail";
+  }
+}
 
-    const selectedBanks = Array.from(
-      document.querySelectorAll(
-        'input[name="bankSources"]:checked'
-      )
-    ).map(input => input.value);
+function accountForImportedBank(bank) {
+  const aliases = {
+    banreservas: ["banreservas", "banco de reservas", "reservas"],
+    bhd: ["bhd", "banco bhd"],
+    popular: ["banco popular", "popular"],
+    qik: ["qik"],
+    token: ["token"]
+  };
+  const terms = aliases[bank] || [bank];
+  return data.accounts.find(account => {
+    const label = `${account.name || ""} ${account.type || ""} ${account.bank || ""} ${account.institution || ""}`.toLowerCase();
+    return terms.some(term => label.includes(term));
+  }) || null;
+}
 
-    if (selectedBanks.length === 0) {
-      showToast("Selecciona al menos un banco.");
-      return;
+async function persistImportedTransactions(movements) {
+  const importedIds = [];
+  let added = 0;
+  for (const movement of movements || []) {
+    if (!movement.gmailMessageId || data.transactions.some(tx => tx.gmailMessageId === movement.gmailMessageId)) {
+      if (movement.gmailMessageId) importedIds.push(movement.gmailMessageId);
+      continue;
     }
+    const account = accountForImportedBank(movement.bank);
+    if (!account) continue;
+    const amount = Number(movement.amount);
+    if (!Number.isFinite(amount) || amount <= 0 || !["income", "expense"].includes(movement.type)) continue;
+    const currency = movement.currency === "USD" ? "USD" : "DOP";
+    if (account.currency !== currency) continue;
+    data.transactions.push({
+      id: crypto.randomUUID(),
+      type: movement.type,
+      description: String(movement.description || (movement.type === "income" ? "Ingreso bancario" : "Gasto bancario")).slice(0, 120),
+      amount,
+      currency,
+      category: movement.category || (movement.type === "income" ? "Otros" : "Otros"),
+      accountId: account.id,
+      date: /^\d{4}-\d{2}-\d{2}$/.test(movement.date || "") ? movement.date : localToday(),
+      note: `Importado desde Gmail · ${movement.bankName || movement.bank}`,
+      gmailMessageId: movement.gmailMessageId,
+      source: "gmail",
+      createdAt: Date.now()
+    });
+    importedIds.push(movement.gmailMessageId);
+    added++;
+  }
 
+  // Guardamos primero en Firestore; solo después confirmamos al Worker los correos importados.
+  if (added > 0) {
+    const userKey = DB_KEY + "_" + currentUser.uid;
+    localStorage.setItem(userKey, JSON.stringify(data));
+    await setDoc(doc(db, "users", currentUser.uid), {
+      data,
+      updatedAt: new Date().toISOString()
+    });
+    renderAll();
+  }
+  if (importedIds.length) await gmailRequest("/gmail/ack", "POST", { ids: importedIds });
+  return { added, skipped: (movements || []).length - added };
+}
+
+async function synchronizeGmail() {
+  if (!currentUser) {
+    showToast("Primero debes iniciar sesión.");
+    return;
+  }
+  if (connectGmailBtn) {
+    connectGmailBtn.disabled = true;
+    connectGmailBtn.textContent = "Sincronizando...";
+  }
+  try {
+    const result = await gmailRequest("/gmail/sync", "POST", {});
+    const outcome = await persistImportedTransactions(result.movements || []);
+    if (outcome.added > 0) {
+      showToast(`Se importaron ${outcome.added} movimiento(s).`);
+    } else if ((result.movements || []).length > 0) {
+      showToast("Se encontraron correos, pero no coincidieron con una cuenta y moneda configuradas.");
+    } else {
+      showToast("Sin movimientos bancarios nuevos reconocidos.");
+    }
+  } catch (error) {
+    console.error("Error sincronizando Gmail:", error);
+    if (error.code === "NOT_CONNECTED") {
+      gmailConnected = false;
+      showToast("Primero conecta tu Gmail.");
+    } else if (error.code === "RECONNECT_REQUIRED") {
+      gmailConnected = false;
+      showToast("La autorización de Gmail venció. Vuelve a conectar Gmail.");
+    } else {
+      showToast("No se pudo sincronizar Gmail. Inténtalo otra vez.");
+    }
+  } finally {
+    if (connectGmailBtn) {
+      connectGmailBtn.disabled = false;
+      connectGmailBtn.textContent = gmailConnected ? "Sincronizar Gmail" : "Conectar Gmail";
+    }
+  }
+}
+
+async function connectGmail() {
+  if (!currentUser) {
+    showToast("Primero debes iniciar sesión.");
+    return;
+  }
+  const selectedBanks = Array.isArray(data.settings.bankSources) ? data.settings.bankSources : [];
+  if (!selectedBanks.length) {
+    showToast("Abre Configuración y selecciona al menos un banco.");
+    return;
+  }
+  if (connectGmailBtn) {
     connectGmailBtn.disabled = true;
     connectGmailBtn.textContent = "Conectando...";
-
-    try {
-      const idToken = await currentUser.getIdToken();
-
-      const response = await fetch(
-        "https://luar-finanzas-api.luarsitoinoa.workers.dev/auth/google/start",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${idToken}`
-          },
-          body: JSON.stringify({ selectedBanks })
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok || !result.authorizationUrl) {
-        throw new Error(result.error || "No se pudo iniciar la conexión.");
-      }
-
-      window.location.href = result.authorizationUrl;
-
-    } catch (error) {
-      console.error("Error conectando Gmail:", error);
-      showToast("No se pudo conectar Gmail. Inténtalo nuevamente.");
-
+  }
+  try {
+    const result = await gmailRequest("/auth/google/start", "POST", { selectedBanks });
+    if (!result.authorizationUrl) throw new Error("No se recibió el enlace de autorización.");
+    window.location.href = result.authorizationUrl;
+  } catch (error) {
+    console.error("Error conectando Gmail:", error);
+    showToast("No se pudo iniciar la conexión con Gmail.");
+    if (connectGmailBtn) {
       connectGmailBtn.disabled = false;
       connectGmailBtn.textContent = "Conectar Gmail";
     }
+  }
+}
+
+if (connectGmailBtn) {
+  connectGmailBtn.addEventListener("click", () => {
+    if (gmailConnected) synchronizeGmail();
+    else connectGmail();
   });
+}
+
+// Mensaje breve al regresar del consentimiento de Google.
+const gmailParams = new URLSearchParams(window.location.search);
+if (gmailParams.get("gmail") === "connected") {
+  showToast("Gmail quedó conectado. Ya puedes sincronizar.");
+  gmailParams.delete("gmail");
+  gmailParams.delete("reason");
+  const cleanUrl = `${window.location.pathname}${gmailParams.toString() ? `?${gmailParams}` : ""}${window.location.hash}`;
+  window.history.replaceState({}, "", cleanUrl);
+} else if (gmailParams.get("gmail") === "error") {
+  showToast("Google no terminó la conexión de Gmail. Revisa el permiso e inténtalo de nuevo.");
+  gmailParams.delete("gmail");
+  gmailParams.delete("reason");
+  const cleanUrl = `${window.location.pathname}${gmailParams.toString() ? `?${gmailParams}` : ""}${window.location.hash}`;
+  window.history.replaceState({}, "", cleanUrl);
 }
